@@ -91,9 +91,12 @@ def expand_classpath_elements(cp_elements)
   cp_elements.map{ |dir| check_exist(File.expand_path(dir) ) }
 end
 
+def expand_jar_dir(dir)
+  Dir[ File.expand_path( File.join( dir, "*.jar") ) ]
+end
+
 def expand_jar_dirs(jar_dirs)
-  jar_dirs.map{ |dir| Dir[ File.expand_path( File.join( dir, "*.jar") ) ] }.
-    flatten.map{ |f| check_file(d) }
+  jar_dirs.map{ |dir| expand_jar_dir(dir) }.flatten.map{ |f| check_file(d) }
 end
 
 def expand_jars(jars)
@@ -112,7 +115,12 @@ def expand_clojure_package(dir, libname)
 end
 
 def expand_clojure_libs(clj_root, libs)
-  libs.map { |lib| expand_clojure_package( File.join(clj_root, lib), lib ) }
+  libs.map do |lib| 
+    lib_paths = [expand_clojure_package( File.join(clj_root, lib), lib )]
+    if File.directory?( lib_jar_dir = File.join(clj_root, lib, "lib") )
+      lib_paths += expand_jar_dir(lib_jar_dir)
+    end
+  end
 end
 
 def classpath(options)
