@@ -1,0 +1,152 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+
+def follow_symlink(f)
+  if File.symlink?(f)
+    if (lnk = File.readlink(f))[0..0] != "/"
+      File.join( File.dirname(f), lnk )
+    else
+      lnk
+    end
+  else
+    f
+  end
+end
+FILE = File.expand_path(follow_symlink(__FILE__))
+
+def parse_opts(argv)
+  options = { 
+    :clj_home => File.join( File.dirname(FILE), "..", "clojure" ),
+    :clj_root => File.join( File.dirname(FILE), ".." ),
+    :clj_libs => [],
+    :cp_elements => [],
+    :jar_dirs => [],
+    :jars => [],
+    :java => "java", 
+    :debug => false
+  }
+
+  argv.options do |opts|
+    opts.banner = "usage: clojure [options] -- [java_options] -- [script_options]"
+
+    opts.on( "--home=CLOJURE_HOME", "clojure home dir" ) do |clj_home|
+      options[:clj_home] = clj_home
+    end
+    
+    opts.on( "--root=CLOJURE_ROOT", "root dir for clojure libs" ) do |clj_root|
+      options[:clj_root] = clj_root
+    end
+
+    opts.on( "-c", "--classpath=CLASSPATH_ELEMENT", "jar or dir to go on classpath") do |cp_dir|
+      options[:cp_elements] << cp_dir
+    end
+
+    opts.on( "-l", "--clj_lib=LIB_DIR", "dir containing src/clj or src sub-dir" ) do |clj_lib|
+      options[:clj_libs] << clj_lib
+    end
+
+    opts.on( "-d", "--jardir=JAR_DIR", "dir containing *.jar files" ) do |jar_dir|
+      options[:jar_dirs] << jar_dir
+    end
+
+    opts.on( "-j", "--jar=JAR", "a jar file") do |jar|
+      options[:jars] << jar
+    end
+
+    opts.on( "--java", "java runtime" ) do |java|
+      options[:java] = java
+    end
+
+    opts.on( "-d", "--debug" ) do
+      options[:debug] = true
+    end
+
+    opts.parse!
+  end
+
+  options
+end
+
+def check_dir(d)
+  raise "no such dir: #{d}" if ! File.directory?(d)
+  d
+end
+
+def check_file(f)
+  raise "no such file: #{f}" if ! File.file?(f)
+  f
+end
+
+def check_exist(f)
+  raise "no such path: #{f}" if ! File.exist?(f)
+  f
+end
+
+def expand_clojure_home(clj_home)
+  check_dir( File.expand_path(clj_home) )
+end
+
+def expand_classpath_elements(cp_elements)
+  cp_elements.map{ |dir| check_exist(File.expand_path(dir) ) }
+end
+
+def expand_jar_dirs(jar_dirs)
+  jar_dirs.map{ |dir| Dir[ File.expand_path( File.join( dir, "*.jar") ) ] }.
+    flatten.map{ |f| check_file(d) }
+end
+
+def expand_jars(jars)
+  jars.map{ |jar| check_file(File.expand_path(jar)) }
+end
+
+def expand_clojure_package(dir, libname)
+  dir = check_dir(File.expand_path(dir))
+  if File.exist?( f=File.join(dir, "#{libname}.jar" ) )
+    check_file(f)
+  elsif File.directory?( f=File.join( dir, "src", "clj" ) )
+    check_dir(f)
+  else
+    check_dir(File.join( dir, "src" ))
+  end
+end
+
+def expand_clojure_libs(clj_root, libs)
+  libs.map { |lib| expand_clojure_package( File.join(clj_root, lib), lib ) }
+end
+
+def classpath(options)
+  ([expand_clojure_package(expand_clojure_home(options[:clj_home]), "clojure")] +
+   expand_classpath_elements(options[:cp_elements]) +
+   expand_jar_dirs(options[:jar_dirs]) +
+   expand_jars(options[:jars]) +
+   expand_clojure_libs(options[:clj_root], options[:clj_libs]) ).join(':')
+end
+
+def expand_argv(argv)
+  argv.map{ |a| "\"#{a}\"" }.join(" ")
+end
+
+def launch_clojure(options)
+  if i=ARGV.index( "--" )
+    java_args = ARGV[0...i]
+    clj_args = ARGV[i+1...ARGV.length]
+  else
+    java_args = []
+    clj_args = ARGV
+  end
+
+  clj_class = if clj_args.length > 0 then  "clojure.lang.Script" else "clojure.lang.Repl" end
+  cmd_line = "rlwrap #{options[:java]} -Dpid=#{Process.pid} #{expand_argv(java_args)} -cp #{classpath(options)} #{clj_class} #{expand_argv(clj_args)}"
+  $stderr << cmd_line << "\n" if DEBUG
+  exec( cmd_line )
+end
+
+options = parse_opts(ARGV)
+DEBUG = options[:debug]
+$stderr << "options: " << options.inspect << "\n" if DEBUG
+
+cp = classpath(options)
+$stderr << "classpath: " << cp << "\n" if DEBUG
+
+launch_clojure(options)
