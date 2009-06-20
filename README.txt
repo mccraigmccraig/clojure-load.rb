@@ -29,7 +29,9 @@ a loader for clojure. configures java classpath with minimal fuss
 
 == REQUIREMENTS:
 
+- *nix o/s
 - java
+- ruby > 1.8.6
 - clojure git repo [ in same dir as clojure-load.rb repo for default operation ]
 - other clojure repos in same dir, for single arg includes
 
