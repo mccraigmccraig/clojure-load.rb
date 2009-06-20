@@ -154,7 +154,4 @@ options = parse_opts(ARGV)
 DEBUG = options[:debug]
 $stderr << "options: " << options.inspect << "\n" if DEBUG
 
-cp = classpath(options)
-$stderr << "classpath: " << cp << "\n" if DEBUG
-
 launch_clojure(options)
