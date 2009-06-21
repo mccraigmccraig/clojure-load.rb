@@ -7,25 +7,30 @@ a loader for clojure. configures java classpath with minimal fuss
 == FEATURES:
 
 - configure java classpath and exec clojure
-- single arg inclusion of clojure projects with standard layout
+- single arg inclusion of compiled clojure projects with standard layout
+- single arg inclusion of clojure source projects with standard layout
 - single arg inclusion of dirs of jars
-- single arg inclusion of individual jars and dirs
+- single arg inclusion of individual files and directories
+- clojure-contrib included by default
+- arg order is respected when building classpath
 - pass arbitrary jvm options
-- pass arbitrary clojure script args
-- clojure repos with standard layout can be included with a single arg
+- pass arbitrary clojure program options
+- follow symlink from bin dir to find clojure repos
 
 == PROBLEMS:
 
+a poor substitute for a real package manager
+
 == SYNOPSIS:
 
-# invoke clojure.lang.Script with both java and script args
-/path/to/clojure-load.rb/clojure -l clojure-contrib -- -Xmx1g -- script args
+# invoke clojure.lang.Script with clojure-json lib and with both java and script args
+/path/to/clojure-load.rb/clojure --script -l clojure-json -- -Xmx1g -- script args
 
-# invoke clojure.lang.Script with script args
-/path/to/clojure-load.rb/clojure -l clojure-contrib -l incanter -- script args
+# invoke clojure.lang.Script with clojure-http-client lib and script args
+/path/to/clojure-load.rb/clojure --script -l clojure-http-client -- script args
 
-# invoke clojure.lang.Repl with java args only
-/path/to/clojure-load.rb/clojure -l clojure-contrib -l incanter -- -Xmx1g --
+# invoke clojure.lang.Repl with clojureql and incanter libs and java args only
+/path/to/clojure-load.rb/clojure -l clojureql -l incanter -- -Xmx1g --
 
 == REQUIREMENTS:
 
