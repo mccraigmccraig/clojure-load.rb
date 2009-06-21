@@ -13,18 +13,16 @@ def follow_symlink(f)
     f
   end
 end
-FILE = File.expand_path(follow_symlink(__FILE__))
+FILE = follow_symlink(__FILE__)
 
 def parse_opts(argv)
+  cp_elements = []
   options = { 
     :clj_home => File.join( File.dirname(FILE), "..", "clojure" ),
     :clj_root => File.join( File.dirname(FILE), ".." ),
-    :clj_libs => [],
-    :cp_elements => [],
-    :jar_dirs => [],
-    :jars => [],
     :java => "java", 
-    :debug => false
+    :debug => false,
+    :cp_elements => cp_elements
   }
 
   argv.options do |opts|
@@ -38,22 +36,6 @@ def parse_opts(argv)
       options[:clj_root] = clj_root
     end
 
-    opts.on( "-c", "--classpath=CLASSPATH_ELEMENT", "jar or dir to go on classpath") do |cp_dir|
-      options[:cp_elements] << cp_dir
-    end
-
-    opts.on( "-l", "--clj_lib=LIB_DIR", "dir containing src/clj or src sub-dir" ) do |clj_lib|
-      options[:clj_libs] << clj_lib
-    end
-
-    opts.on( "-d", "--jardir=JAR_DIR", "dir containing *.jar files" ) do |jar_dir|
-      options[:jar_dirs] << jar_dir
-    end
-
-    opts.on( "-j", "--jar=JAR", "a jar file") do |jar|
-      options[:jars] << jar
-    end
-
     opts.on( "--java", "java runtime" ) do |java|
       options[:java] = java
     end
@@ -62,76 +44,111 @@ def parse_opts(argv)
       options[:debug] = true
     end
 
+    opts.on( "-p", "--path=CLASSPATH_ELEMENT", "jar or dir path to go directly in classpath") do |cp_dir|
+      cp_elements << [:path, cp_dir]
+    end
+
+    opts.on( "-l", "--lib=LIB_DIR", "clojure library dir containing lib/*.jar and one of LIB_DIR.jar or src/clj or src sub-dir" ) do |clj_lib|
+      cp_elements << [:clj_lib, clj_lib]
+    end
+
+    opts.on( "-s", "--src_lib=LIB_DIR", "clojure source library dir containing lib/*.jar and one of src/clj or src sub-dir") do |clj_src|
+      cp_elements << [:clj_src, clj_src]
+    end
+
+    opts.on( "-j", "--jardir=JAR_DIR", "dir containing *.jar files" ) do |jar_dir|
+      cp_elements << [:jar_dir, jar_dir]
+    end
+
     opts.parse!
   end
 
   options
 end
 
-def check_dir(d)
-  raise "no such dir: #{d}" if ! File.directory?(d)
-  d
+def check_files_with(files, pred)
+  files = [*files]
+  f = files.find{ |file| file if File.send(pred, file) }
+  raise "no match: File.#{pred.to_s} from #{files.inspect}" if ! f
+  f
+end
+
+def check_dir(dir)
+  check_files_with(dir, :directory?)
 end
 
 def check_file(f)
-  raise "no such file: #{f}" if ! File.file?(f)
-  f
+  check_files_with(f, :file?)
 end
 
 def check_exist(f)
-  raise "no such path: #{f}" if ! File.exist?(f)
-  f
+  check_files_with(f, :exist?)
 end
 
-def expand_clojure_home(clj_home)
-  check_dir( File.expand_path(clj_home) )
+def clj_home(options)
+  check_dir(options[:clj_home])
 end
 
-def expand_classpath_elements(cp_elements)
-  cp_elements.map{ |dir| check_exist(File.expand_path(dir) ) }
+def clj_root(options)
+  check_dir(options[:clj_root])
 end
 
-def expand_jar_dir(dir)
-  Dir[ File.expand_path( File.join( dir, "*.jar") ) ]
+def expand_path(options, path)
+  path.split(':').select{ |p| !p.empty? }.map{ |p| check_exist(p) }
 end
 
-def expand_jar_dirs(jar_dirs)
-  jar_dirs.map{ |dir| expand_jar_dir(dir) }.flatten.map{ |f| check_file(d) }
+def expand_jar_dir(options, dir)
+  check_dir(dir)
+  Dir[ File.join( dir, "*.jar") ]
 end
 
-def expand_jars(jars)
-  jars.map{ |jar| check_file(File.expand_path(jar)) }
-end
-
-def expand_clojure_package(dir, libname)
-  dir = check_dir(File.expand_path(dir))
-  if File.exist?( f=File.join(dir, "#{libname}.jar" ) )
-    check_file(f)
-  elsif File.directory?( f=File.join( dir, "src", "clj" ) )
-    check_dir(f)
+def lib_dir(options, lib)
+  if lib == File.basename( lib )
+    libdir = File.join( clj_root(options), lib )
+    [libdir,lib]
   else
-    check_dir(File.join( dir, "src" ))
+    libdir = check_dir( lib )
+    [libdir, File.basename(lib)]
   end
 end
 
-def expand_clojure_libs(clj_root, libs)
-  libs.map do |lib| 
-    lib_paths = [expand_clojure_package( File.join(clj_root, lib), lib )]
-    if File.directory?( lib_jar_dir = File.join(clj_root, lib, "lib") )
-      lib_paths += expand_jar_dir(lib_jar_dir)
-    end
+def expand_clj_src(options, lib)
+  libdir,libname = lib_dir(options, lib)
+  paths = [check_files_with([File.join( libdir, "src", "clj" ),
+                             File.join( libdir, "src")],
+                            :directory?)]
+  if File.directory?(lib_jar_dir = File.join(libdir, "lib"))
+    paths += expand_jar_dir(options, lib_jar_dir)
   end
+  paths
+end
+
+def expand_clj_lib(options, lib)
+  libdir,libname = lib_dir(options, lib)
+  if File.exist?( jar=File.join(libdir, "#{libname}.jar" ) )
+    paths = [jar]
+    if File.directory?(lib_jar_dir = File.join(libdir, "lib"))
+      paths += expand_jar_dir(options, lib_jar_dir)
+    end
+    paths
+  else
+    expand_clj_src(options, lib)
+  end
+end
+
+def expand_classpath(options)
+  paths = options[:cp_elements].map do |(type,cp)|
+    p = self.send("expand_#{type.to_s}", options, cp)
+  end.flatten
+
+  paths += expand_clj_lib(options, clj_home(options))
 end
 
 def classpath(options)
-  ([expand_clojure_package(expand_clojure_home(options[:clj_home]), "clojure")] +
-   expand_classpath_elements(options[:cp_elements]) +
-   expand_jar_dirs(options[:jar_dirs]) +
-   expand_jars(options[:jars]) +
-   expand_clojure_libs(options[:clj_root], options[:clj_libs]) ).join(':')
+  expand_classpath(options).map{ |p| File.expand_path(p) }.join(':')
 end
 
-def expand_argv(argv)
+def squish_argv(argv)
   argv.map{ |a| "\"#{a}\"" }.join(" ")
 end
 
@@ -145,7 +162,7 @@ def launch_clojure(options)
   end
 
   clj_class = if clj_args.length > 0 then  "clojure.lang.Script" else "clojure.lang.Repl" end
-  cmd_line = "rlwrap #{options[:java]} -Dpid=#{Process.pid} #{expand_argv(java_args)} -cp #{classpath(options)} #{clj_class} #{expand_argv(clj_args)}"
+  cmd_line = "rlwrap #{options[:java]} -Dpid=#{Process.pid} #{squish_argv(java_args)} -cp #{classpath(options)} #{clj_class} #{squish_argv(clj_args)}"
   $stderr << cmd_line << "\n" if DEBUG
   exec( cmd_line )
 end
