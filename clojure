@@ -22,6 +22,7 @@ def parse_opts(argv)
     :clj_root => File.join( File.dirname(FILE), ".." ),
     :default_libs => ["clojure-contrib"],
     :main => "clojure.lang.Repl",
+    :rlwrap => nil,
     :java => "java", 
     :debug => false,
     :cp_elements => cp_elements
@@ -52,6 +53,14 @@ def parse_opts(argv)
 
     opts.on( "--nodefaultlibs", "disable inclusion of default clojure libs on classpath" ) do
       options[:default_libs] = []
+    end
+
+    opts.on( "--rlwrap", "enable rlwrap" ) do
+      options[:rlwrap] = true
+    end
+
+    opts.on( "--norlwrap", "disable rlwrap") do
+      options[:rlwrap] = false
     end
 
     opts.on( "-d", "--debug" ) do
@@ -167,6 +176,10 @@ def squish_argv(argv)
   argv.map{ |a| "\"#{a}\"" }.join(" ")
 end
 
+def rlwrap(options)
+  %x{which rlwrap}.strip if options[:rlwrap] || (options[:rlwrap].nil? && options[:main] == "clojure.lang.Repl" )
+end
+
 def launch_clojure(options)
   if i=ARGV.index( "--" )
     java_args = ARGV[0...i]
@@ -176,7 +189,7 @@ def launch_clojure(options)
     clj_args = ARGV
   end
 
-  cmd_line = "rlwrap #{options[:java]} -Dpid=#{Process.pid} #{squish_argv(java_args)} -cp #{classpath(options)} #{options[:main]} #{squish_argv(clj_args)}"
+  cmd_line = "#{rlwrap(options)} #{options[:java]} -Dpid=#{Process.pid} #{squish_argv(java_args)} -cp #{classpath(options)} #{options[:main]} #{squish_argv(clj_args)}".strip
   $stderr << cmd_line << "\n" if DEBUG
   exec( cmd_line )
 end

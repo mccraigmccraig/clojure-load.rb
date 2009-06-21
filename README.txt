@@ -16,6 +16,7 @@ a loader for clojure. configures java classpath with minimal fuss
 - pass arbitrary jvm options
 - pass arbitrary clojure program options
 - follow symlink from bin dir to find clojure repos
+- rlwrap support
 
 == PROBLEMS:
 
@@ -37,8 +38,9 @@ a poor substitute for a real package manager
 - *nix o/s
 - java
 - ruby > 1.8.6
+- rlwrap [ optional ]
 - clojure git repo [ in same dir as clojure-load.rb repo for default operation ]
-- other clojure repos in same dir, for single arg includes
+- other clojure repos in same dir as clojure-load.rb repo, for single arg includes
 
 == INSTALL:
 
