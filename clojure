@@ -39,7 +39,7 @@ def parse_opts(argv)
       options[:clj_root] = clj_root
     end
 
-    opts.on( "--java", "java runtime" ) do |java|
+    opts.on( "--java=JAVA", "java runtime" ) do |java|
       options[:java] = java
     end
 
