@@ -17,6 +17,7 @@ a loader for clojure. configures java classpath with minimal fuss
 - pass arbitrary clojure program options
 - follow symlink from bin dir to find clojure repos
 - rlwrap support
+- script and repl support
 
 == PROBLEMS:
 
@@ -24,13 +25,13 @@ a poor substitute for a real package manager
 
 == SYNOPSIS:
 
-# invoke clojure.lang.Script with clojure-json lib and with both java and script args
+# run a script with clojure-json lib and with both java and script args
 /path/to/clojure-load.rb/clojure --script -l clojure-json -- -Xmx1g -- script args
 
-# invoke clojure.lang.Script with clojure-http-client lib and script args
+# run a script with clojure-http-client lib and script args
 /path/to/clojure-load.rb/clojure --script -l clojure-http-client -- script args
 
-# invoke clojure.lang.Repl with clojureql and incanter libs and java args only
+# start a repl with clojureql and incanter libs and java args only
 /path/to/clojure-load.rb/clojure -l clojureql -l incanter -- -Xmx1g --
 
 == REQUIREMENTS:
