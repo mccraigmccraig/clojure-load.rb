@@ -48,7 +48,7 @@ def parse_opts(argv)
       options[:main] = main
     end
 
-    opts.on( "--script" , "use clojure.lang.Script as the main java class" ) do
+    opts.on( "--script" , "run a script rather than start a repl" ) do
       options[:repl] = false
     end
 
