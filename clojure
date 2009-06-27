@@ -18,9 +18,9 @@ FILE = follow_symlink(__FILE__)
 def parse_opts(argv)
   cp_elements = []
   options = { 
-    :clj_home => File.join( File.dirname(FILE), "..", "clojure" ),
+    :clj_home => nil,
     :clj_root => File.join( File.dirname(FILE), ".." ),
-    :default_libs => ["clojure-contrib"],
+    :default_libs => ["clojure-contrib", "clojure"],
     :main => "clojure.main",
     :repl => true,
     :rlwrap => nil,
@@ -90,50 +90,47 @@ def parse_opts(argv)
   options
 end
 
-def check_files_with(files, pred)
-  files = [*files]
+def check_files_with(files, pred, ex)
+  files = [*files].compact
   f = files.find{ |file| file if File.send(pred, file) }
-  raise "no match: File.#{pred.to_s} from #{files.inspect}" if ! f
+  raise "no match: File.#{pred.to_s} from #{files.inspect}" if ex && !f 
   f
 end
 
-def check_dir(dir)
-  check_files_with(dir, :directory?)
-end
-
-def check_file(f)
-  check_files_with(f, :file?)
-end
-
-def check_exist(f)
-  check_files_with(f, :exist?)
-end
-
 def clj_home(options)
-  check_dir(options[:clj_home])
+  h=check_files_with(options[:clj_home], :directory?, false)
+  raise "clj_home: #{options[:clj_home]} is not a directory" if options[:clj_home] && !h
+  h
 end
 
 def clj_root(options)
-  check_dir(options[:clj_root])
+  r = check_files_with(options[:clj_root], :directory?, false)
+  raise "clj_root: #{options[:clj_root]} is not a directory" if options[:clj_root] && !r
+  r
+end
+
+def choose_path(options, path, pred)
+  # choose an expansion relative to current dir, or relative to libdir
+  if check_files_with(path, pred, false)
+    path
+  elsif clj_root(options) && check_files_with(lp=File.join(clj_root(options), path), pred, false)
+    lp
+  else
+    raise "no path matching: #{path}"
+  end
 end
 
 def expand_path(options, path)
-  path.split(':').select{ |p| !p.empty? }.map{ |p| check_exist(p) }
+  path.split(':').select{ |p| !p.empty? }.map{ |p| choose_path(options, p, :exist?) }
 end
 
 def expand_jar_dir(options, dir)
-  check_dir(dir)
+  dir = choose_path(options, dir, :directory?)
   Dir[ File.join( dir, "*.jar") ]
 end
 
 def lib_dir(options, lib)
-  if lib == File.basename( lib )
-    libdir = File.join( clj_root(options), lib )
-    [libdir,lib]
-  else
-    libdir = check_dir( lib )
-    [libdir, File.basename(lib)]
-  end
+  [choose_path(options, lib, :directory?), File.basename(lib)]
 end
 
 def expand_clj_src(options, lib)
@@ -166,11 +163,12 @@ def expand_classpath(options)
   end.flatten
 
   paths += options[:default_libs].map{ |lib| expand_clj_lib(options, lib) }.flatten
-  paths += expand_clj_lib(options, clj_home(options))
+  paths += expand_clj_lib(options, clj_home(options)) if clj_home(options)
+  paths
 end
 
 def classpath(options)
-  expand_classpath(options).map{ |p| File.expand_path(p) }.join(':')
+  expand_classpath(options).map{ |p| File.expand_path(p) }.uniq.join(':')
 end
 
 def squish_argv(argv)
