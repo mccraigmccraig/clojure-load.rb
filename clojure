@@ -1,19 +1,9 @@
 #!/usr/bin/env ruby
 
 require 'optparse'
+require 'pathname'
 
-def follow_symlink(f)
-  if File.symlink?(f)
-    if (lnk = File.readlink(f))[0..0] != "/"
-      File.join( File.dirname(f), lnk )
-    else
-      lnk
-    end
-  else
-    f
-  end
-end
-FILE = follow_symlink(__FILE__)
+FILE = Pathname.new(__FILE__).realpath
 
 def parse_opts(argv)
   cp_elements = []
