@@ -127,9 +127,12 @@ def expand_clj_src(options, lib)
   libdir,libname = lib_dir(options, lib)
   paths = [check_files_with([File.join( libdir, "src", "clj" ),
                              File.join( libdir, "src")],
-                            :directory?)]
+                            :directory?, true )]
   if File.directory?(lib_jar_dir = File.join(libdir, "lib"))
     paths += expand_jar_dir(options, lib_jar_dir)
+  end
+  if File.directory?(lib_deps_dir = File.join(libdir, "deps"))
+    paths += expand_jar_dir(options, lib_deps_dir)
   end
   paths
 end
@@ -140,6 +143,9 @@ def expand_clj_lib(options, lib)
     paths = [jar]
     if File.directory?(lib_jar_dir = File.join(libdir, "lib"))
       paths += expand_jar_dir(options, lib_jar_dir)
+    end
+    if File.directory?(lib_deps_dir = File.join(libdir, "deps"))
+      paths += expand_jar_dir(options, lib_deps_dir)
     end
     paths
   else
