@@ -5,11 +5,13 @@ require 'pathname'
 
 FILE = Pathname.new(__FILE__).realpath
 
-def split_opts(split_at, argv)
+def split_opts(split_at, argv, right=true)
   if i=argv.index(split_at)
     [argv[0...i], argv[i+1..-1]]
-  else
+  elsif right
     [[],argv]
+  else
+    [argv,[]]
   end
 end
   
@@ -31,9 +33,9 @@ def parse_opts(argv)
 
   # if there's a --- switch, everything before is for java
   # if there's a -- switch, everything after --- before -- is for this wrapper script
-  # otherwise everything goes to the target script
-  java_opts,wrapper_script_opts = split_opts("---", argv)
-  wrapper_opts, script_opts = split_opts("--", wrapper_script_opts)
+  # otherwise everything goes to the wrapper script
+  java_opts,wrapper_script_opts = split_opts("---", argv, true)
+  wrapper_opts, script_opts = split_opts("--", wrapper_script_opts, false)
 
   options[:java_options] = java_opts
   options[:script_options] = script_opts
