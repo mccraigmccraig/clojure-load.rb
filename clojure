@@ -139,7 +139,7 @@ end
 
 def expand_jar_dir(options, dir)
   dir = choose_path(options, dir, :directory?)
-  Dir[ File.join( dir, "*.jar") ]
+  Dir[ File.join( dir, "**/*.jar") ]
 end
 
 def lib_dir(options, lib)
