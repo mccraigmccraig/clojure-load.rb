@@ -177,12 +177,16 @@ def expand_clj_lib(options, lib)
 end
 
 def expand_classpath(options)
-  paths = options[:cp_elements].map do |(type,cp)|
+  paths = []
+
+  paths += options[:default_libs].map{ |lib| expand_clj_lib(options, lib) }.flatten
+
+  paths += options[:cp_elements].map do |(type,cp)|
     p = self.send("expand_#{type.to_s}", options, cp)
   end.flatten
 
-  paths += options[:default_libs].map{ |lib| expand_clj_lib(options, lib) }.flatten
   paths += expand_clj_lib(options, clj_home(options)) if clj_home(options)
+
   paths
 end
 
